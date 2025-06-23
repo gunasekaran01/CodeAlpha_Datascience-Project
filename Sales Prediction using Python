@@ -1,0 +1,127 @@
+import pandas as pd
+import numpy as np
+import joblib
+import os
+import plotly.graph_objects as go
+
+from sklearn.linear_model import LinearRegression
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import mean_squared_error, r2_score
+
+
+def load_data(path):
+    try:
+        df = pd.read_csv(path)
+        df.drop(columns=["Unnamed: 0"], errors="ignore", inplace=True)
+        print(" Data loaded successfully.")
+        return df
+    except FileNotFoundError:
+        print(" File not found. Please check the path.")
+        exit()
+
+
+def train_and_save_model(df, model_path):
+    X = df[["TV", "Radio", "Newspaper"]]
+    y = df["Sales"]
+
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+    model = LinearRegression()
+    model.fit(X_train, y_train)
+    y_pred = model.predict(X_test)
+
+    mse = mean_squared_error(y_test, y_pred)
+    r2 = r2_score(y_test, y_pred)
+
+    print(f"\n MSE: {mse:.2f}")
+    print(f" R² Score: {r2:.2f}")
+
+    # Save model
+    joblib.dump(model, model_path)
+    print(f" Model saved to: {model_path}")
+
+    return model, X_test, y_test, y_pred
+
+
+def load_model(model_path):
+    if os.path.exists(model_path):
+        model = joblib.load(model_path)
+        print("Model loaded successfully.")
+        return model
+    else:
+        return None
+
+
+def display_coefficients(model, features):
+    coef_df = pd.DataFrame({"Feature": features, "Coefficient": model.coef_})
+    print("\n Feature Impact on Sales:")
+    print(coef_df.to_string(index=False))
+
+
+def get_user_prediction(model):
+    try:
+        print("\n Enter your advertising budget:")
+        tv = float(input("TV Budget: "))
+        radio = float(input("Radio Budget: "))
+        newspaper = float(input("Newspaper Budget: "))
+
+        input_df = pd.DataFrame([[tv, radio, newspaper]], columns=["TV", "Radio", "Newspaper"])
+        prediction = model.predict(input_df)[0]
+
+        print(f"\nPredicted Sales: {prediction:.2f} units")
+        return tv, radio, newspaper, prediction
+
+    except Exception as e:
+        print("Invalid input:", e)
+        exit()
+
+
+def plot_interactive(df, X_test, y_pred, user_input):
+    tv, radio, news, pred = user_input
+
+    fig_tv = go.Figure()
+    fig_tv.add_trace(go.Scatter(x=df["TV"], y=df["Sales"], mode="markers", name="TV Data", marker=dict(color="red")))
+    fig_tv.add_trace(go.Scatter(x=X_test["TV"], y=y_pred, mode="markers", name="TV Prediction", marker=dict(color="cyan")))
+    fig_tv.add_trace(go.Scatter(x=[tv], y=[pred], mode="markers+text", name="Your Input",
+                                marker=dict(color="yellow", size=12, symbol="star"),
+                                text=[f"{pred:.2f}"], textposition="top center"))
+    fig_tv.update_layout(title="TV Budget vs Sales", xaxis_title="TV Budget", yaxis_title="Sales", template="plotly_dark")
+    fig_tv.show()
+
+    fig_radio = go.Figure()
+    fig_radio.add_trace(go.Scatter(x=df["Radio"], y=df["Sales"], mode="markers", name="Radio Data", marker=dict(color="green")))
+    fig_radio.add_trace(go.Scatter(x=X_test["Radio"], y=y_pred, mode="markers", name="Radio Prediction", marker=dict(color="cyan")))
+    fig_radio.add_trace(go.Scatter(x=[radio], y=[pred], mode="markers+text", name="Your Input",
+                                   marker=dict(color="yellow", size=12, symbol="star"),
+                                   text=[f"{pred:.2f}"], textposition="top center"))
+    fig_radio.update_layout(title="Radio Budget vs Sales", xaxis_title="Radio Budget", yaxis_title="Sales", template="plotly_dark")
+    fig_radio.show()
+
+    fig_news = go.Figure()
+    fig_news.add_trace(go.Scatter(x=df["Newspaper"], y=df["Sales"], mode="markers", name="Newspaper Data", marker=dict(color="blue")))
+    fig_news.add_trace(go.Scatter(x=X_test["Newspaper"], y=y_pred, mode="markers", name="Newspaper Prediction", marker=dict(color="cyan")))
+    fig_news.add_trace(go.Scatter(x=[news], y=[pred], mode="markers+text", name="Your Input",
+                                  marker=dict(color="yellow", size=12, symbol="star"),
+                                  text=[f"{pred:.2f}"], textposition="top center"))
+    fig_news.update_layout(title="Newspaper Budget vs Sales", xaxis_title="Newspaper Budget", yaxis_title="Sales", template="plotly_dark")
+    fig_news.show()
+
+
+if __name__ == "__main__":
+    csv_path = r"C:\Users\Administrator\Downloads\Advertising.csv"
+    model_path = "sales_model.pkl"
+
+    df = load_data(csv_path)
+    model = load_model(model_path)
+
+    if model is None:
+        model, X_test, y_test, y_pred = train_and_save_model(df, model_path)
+    else:
+        X = df[["TV", "Radio", "Newspaper"]]
+        y = df["Sales"]
+        _, X_test, _, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+        y_pred = model.predict(X_test)
+
+    display_coefficients(model, ["TV", "Radio", "Newspaper"])
+    user_input = get_user_prediction(model)
+    plot_interactive(df, X_test, y_pred, user_input)
