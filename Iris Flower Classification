@@ -1,0 +1,60 @@
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+from sklearn.model_selection import train_test_split
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
+from sklearn.decomposition import PCA
+
+df = pd.read_csv(r'C:\Users\Administrator\Downloads\Iris.csv')
+df.columns = [ 'sepal_length', 'sepal_width', 'petal_length', 'petal_width', 'species']
+df['species'] = df['species'].astype('category').cat.codes
+
+X = df.iloc[:, :-1].values
+y = df['species'].values
+
+species_names = ['Iris-setosa', 'Iris-versicolor', 'Iris-virginica']
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42, stratify=y)
+
+model = LogisticRegression(max_iter=200)
+model.fit(X_train, y_train)
+
+
+y_pred = model.predict(X_test)
+print("Accuracy:", accuracy_score(y_test, y_pred))
+print("Classification Report:", classification_report(y_test, y_pred))
+print("Confusion Matrix:", confusion_matrix(y_test, y_pred))
+
+
+try:
+    print("Enter measurements of a new flower sample")
+    sepal_length = float(input("Sepal length (cm): "))
+    sepal_width  = float(input("Sepal width (cm): "))
+    petal_length = float(input("Petal length (cm): "))
+    petal_width  = float(input("Petal width (cm): "))
+except ValueError:
+    print(" Please enter valid numbers.")
+    exit()
+
+new_sample = np.array([[sepal_length, sepal_width, petal_length, petal_width]])
+predicted_class = model.predict(new_sample)[0]
+print("Predicted species for new sample:", species_names[predicted_class])
+
+pca = PCA(n_components=2)
+X_pca = pca.fit_transform(X)
+new_sample_pca = pca.transform(new_sample)
+
+
+plt.figure(figsize=(8, 6))
+for class_index in np.unique(y):
+    plt.scatter(X_pca[y == class_index, 0], X_pca[y == class_index, 1],label=species_names[class_index], alpha=0.6)
+
+plt.scatter(new_sample_pca[0, 0], new_sample_pca[0, 1],color='red', marker='*', s=200, label='New Sample')
+
+plt.xlabel('X-Axis')
+plt.ylabel('Y-Axis')
+plt.title('Iris Data Projection with New Sample')
+plt.legend()
+plt.grid(True)
+plt.tight_layout()
+plt.show()
